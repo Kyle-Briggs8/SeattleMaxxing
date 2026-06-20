@@ -83,6 +83,13 @@ source never kills the run (each is wrapped in try/except and logged).
   the embedded Apollo/Next.js data (the official API is paid). One request per
   keyword in `config.SOURCES["meetup"]["queries"]` — tuned for startup/VC/finance,
   which mostly live on Meetup. Edit those keywords to retarget what it pulls.
+- **Eventbrite** ✅ — discovery via the city pages' embedded JSON-LD `ItemList`
+  (`/d/wa--seattle/<category>--events/`). This is JSON-LD scraping, **not** the
+  dead search API. Add categories in `config.SOURCES["eventbrite"]["pages"]`.
+- **AI Tinkerers Seattle** ✅ — AI-builder community (`seattle.aitinkerers.org`),
+  JSON-LD events. High signal for AI/tech/founder events, low volume.
+- **allevents.in** ✅ — aggregator (`/seattle/technology`, `/business`) via
+  schema.org Event JSON-LD. Extra volume; noisier, so the categorizer filters it.
 - **Ticketmaster** ✅ — official Discovery JSON API (not a scraper, so it won't
   break on redesigns). Covers concerts/arts/sports within 25mi of Seattle.
   Requires the free `TICKETMASTER_API_KEY`; self-disables without it.

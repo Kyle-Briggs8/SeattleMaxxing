@@ -109,6 +109,25 @@ SOURCES = {
                       "location": "us--wa--Seattle",
                       "queries": ["startup", "venture capital", "fintech",
                                   "investing", "founders"]},
+    # Eventbrite — discovery via the city pages' embedded JSON-LD ItemList. This
+    # is HTML/JSON-LD scraping, NOT the dead search API (see CLAUDE.md). Add more
+    # /d/wa--seattle/<category>--events/ pages to widen coverage.
+    "eventbrite":    {"enabled": True,
+                      "url": "https://www.eventbrite.com/d/wa--seattle/tech--events/",
+                      "pages": [
+                          "https://www.eventbrite.com/d/wa--seattle/tech--events/",
+                          "https://www.eventbrite.com/d/wa--seattle/business--events/",
+                          "https://www.eventbrite.com/d/wa--seattle/science-and-tech--events/",
+                      ]},
+    # AI Tinkerers Seattle — premier AI-builder community (JSON-LD events).
+    "aitinkerers":   {"enabled": True,  "url": "https://seattle.aitinkerers.org/"},
+    # allevents.in aggregator — extra volume via schema.org Event JSON-LD.
+    "allevents":     {"enabled": True,
+                      "url": "https://allevents.in/seattle/technology",
+                      "pages": [
+                          "https://allevents.in/seattle/technology",
+                          "https://allevents.in/seattle/business",
+                      ]},
     # Ticketmaster Discovery API — official, stable JSON (concerts/arts/sports).
     # OFF: it's an entertainment firehose with ~no tech/startup/finance signal
     # and was burying the events we care about. Flip True (+ re-enable music/

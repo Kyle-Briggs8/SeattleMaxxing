@@ -495,12 +495,52 @@ def fetch_meetup(url):
 
 
 # --------------------------------------------------------------------------- #
+# JSON-LD sources  (Eventbrite / AI Tinkerers / allevents — same extractor)
+# --------------------------------------------------------------------------- #
+# These all expose schema.org events in JSON-LD, so they share one helper that
+# fetches each configured page and dedupes by event URL.
+def _fetch_jsonld_pages(source, pages):
+    seen, out = set(), []
+    for page in pages:
+        try:
+            html = _http_get(page)
+        except Exception as exc:  # noqa: BLE001 — one page ≠ dead source
+            log.warning("%s: page failed (%s)", source, exc)
+            continue
+        for ev in extract_jsonld_events(html, source, page):
+            key = ev["url"] or ev["title"]
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(ev)
+    return out
+
+
+def fetch_eventbrite(url):
+    # NB: Eventbrite's SEARCH API is dead; this reads the website's JSON-LD only.
+    pages = config.SOURCES.get("eventbrite", {}).get("pages", [url])
+    return _fetch_jsonld_pages("eventbrite", pages)
+
+
+def fetch_aitinkerers(url):
+    return _fetch_jsonld_pages("aitinkerers", [url])
+
+
+def fetch_allevents(url):
+    pages = config.SOURCES.get("allevents", {}).get("pages", [url])
+    return _fetch_jsonld_pages("allevents", pages)
+
+
+# --------------------------------------------------------------------------- #
 # Dispatch
 # --------------------------------------------------------------------------- #
 _FETCHERS = {
     "luma": fetch_luma,
     "geekwire": fetch_geekwire,
     "meetup": fetch_meetup,
+    "eventbrite": fetch_eventbrite,
+    "aitinkerers": fetch_aitinkerers,
+    "allevents": fetch_allevents,
     "ticketmaster": fetch_ticketmaster,
     "everout": fetch_everout,
     "visit_seattle": fetch_visit_seattle,

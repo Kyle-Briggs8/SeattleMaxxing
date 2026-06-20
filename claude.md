@@ -36,14 +36,20 @@ Categories must be toggleable in `config.py` without touching pipeline logic.
 
 ## CRITICAL: source realities — do not regress on these
 - **Eventbrite's public event SEARCH API is dead.** It only returns an org's own
-  events now. Never reintroduce it as a discovery source.
-- **Meetup API is paid.** Skip unless I explicitly add a paid key.
-- Working free sources are SCRAPED HTML and therefore FRAGILE:
-  - Luma — `https://lu.ma/seattle` (tech / startup / finance / party)
-  - EverOut (The Stranger) — `https://everout.com/seattle/events/` (music / arts / food / party)
-  - Visit Seattle calendar (optional) — nature / festivals / family
-- Selectors WILL break over time. That is expected, not a bug to "fix" by
-  removing the source. Update the selector.
+  events now. Never reintroduce the *API* as a discovery source. HOWEVER, the
+  Eventbrite city pages (`/d/wa--seattle/<category>--events/`) embed a JSON-LD
+  `ItemList` of events that IS usable for discovery — this is what
+  `fetch_eventbrite` reads. Different mechanism, allowed, in use. Don't remove it.
+- **Meetup's official API is paid.** But its `/find/` page is a Next.js app that
+  embeds an Apollo cache of search results — `fetch_meetup` parses that (no key).
+  This is the startup/VC/finance engine; keep it.
+- The live source lineup drifts; see README "Current source status" for truth.
+  Roughly: GeekWire (Tribe REST API) = tech; Meetup + Eventbrite + Luma =
+  startup/VC/finance; AI Tinkerers = AI; allevents = volume. EverOut is OFF (AWS
+  WAF JS bot-wall) and Ticketmaster is OFF (entertainment, off-topic).
+- Sources split two ways: **structured (JSON/JSON-LD/REST)** — sturdy, preferred;
+  and **scraped HTML selectors** — FRAGILE. Selectors WILL break over time. That
+  is expected, not a bug to "fix" by removing the source. Update the selector.
 
 ## Hard rules for unattended reliability
 - Every source wrapped in try/except. One dead source must NEVER kill the run.
