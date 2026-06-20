@@ -413,11 +413,94 @@ def fetch_geekwire(url):
 
 
 # --------------------------------------------------------------------------- #
+# Source: Meetup  (discovery via find page — startup / VC / finance)
+# --------------------------------------------------------------------------- #
+# Meetup's official API is paid, but its find page is a Next.js app that ships an
+# Apollo cache of search results in __NEXT_DATA__. We read that — one request per
+# keyword — to discover the startup/finance events that mostly live on Meetup.
+def _find_apollo_state(node):
+    """Recursively locate the __APOLLO_STATE__ dict inside __NEXT_DATA__."""
+    if isinstance(node, dict):
+        if "__APOLLO_STATE__" in node:
+            return node["__APOLLO_STATE__"]
+        for v in node.values():
+            found = _find_apollo_state(v)
+            if found:
+                return found
+    elif isinstance(node, list):
+        for v in node:
+            found = _find_apollo_state(v)
+            if found:
+                return found
+    return None
+
+
+def _parse_meetup_events(html):
+    """Yield (event_id, normalized_dict) from a Meetup find-page response."""
+    soup = BeautifulSoup(html, "html.parser")
+    tag = soup.find("script", id="__NEXT_DATA__")
+    if not tag or not tag.string:
+        return []
+
+    apollo = _find_apollo_state(json.loads(tag.string)) or {}
+    results = []
+    for key, e in apollo.items():
+        if not key.startswith("Event:") or not isinstance(e, dict):
+            continue
+        # Venue may be inline or an Apollo reference ({"__ref": "Venue:..."}).
+        venue = e.get("venue") or {}
+        if isinstance(venue, dict) and "__ref" in venue:
+            venue = apollo.get(venue["__ref"], {})
+        location = _clean(" ".join(str(venue.get(k, "")) for k in
+                                   ("name", "address", "city"))) if isinstance(venue, dict) else ""
+
+        ev = _normalize(
+            title=e.get("title"),
+            url=e.get("eventUrl", ""),
+            start_datetime=_parse_dt(e.get("dateTime")),  # ISO w/ -07:00 offset
+            location=location,
+            description=e.get("description", ""),
+            source="meetup",
+        )
+        if ev:
+            results.append((e.get("id") or key, ev))
+    return results
+
+
+def fetch_meetup(url):
+    cfg = config.SOURCES.get("meetup", {})
+    location = cfg.get("location", "us--wa--Seattle")
+    queries = cfg.get("queries", [])
+
+    seen, out = set(), []
+    for q in queries:
+        try:
+            resp = requests.get(
+                url,
+                params={"keywords": q, "source": "EVENTS", "location": location},
+                headers={"User-Agent": config.HTTP_USER_AGENT},
+                timeout=config.HTTP_TIMEOUT,
+            )
+            resp.raise_for_status()
+        except Exception as exc:  # noqa: BLE001 — one bad query ≠ dead source
+            log.warning("meetup: query %r failed (%s)", q, exc)
+            continue
+
+        for eid, ev in _parse_meetup_events(resp.text):
+            if eid in seen:        # same event surfaced by multiple keywords
+                continue
+            seen.add(eid)
+            out.append(ev)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Dispatch
 # --------------------------------------------------------------------------- #
 _FETCHERS = {
     "luma": fetch_luma,
     "geekwire": fetch_geekwire,
+    "meetup": fetch_meetup,
     "ticketmaster": fetch_ticketmaster,
     "everout": fetch_everout,
     "visit_seattle": fetch_visit_seattle,

@@ -102,6 +102,13 @@ SOURCES = {
     # GeekWire tech events calendar (WordPress Tribe REST API — clean JSON, no
     # key). Seattle tech/startup/finance — the core of this digest.
     "geekwire":      {"enabled": True,  "url": "https://www.geekwire.com/wp-json/tribe/events/v1/events"},
+    # Meetup discovery via its find page (parsed from embedded Apollo/Next data,
+    # no paid API). One request per keyword — tuned to fill the startup/finance
+    # gap, since those events overwhelmingly live on Meetup.
+    "meetup":        {"enabled": True,  "url": "https://www.meetup.com/find/",
+                      "location": "us--wa--Seattle",
+                      "queries": ["startup", "venture capital", "fintech",
+                                  "investing", "founders"]},
     # Ticketmaster Discovery API — official, stable JSON (concerts/arts/sports).
     # OFF: it's an entertainment firehose with ~no tech/startup/finance signal
     # and was burying the events we care about. Flip True (+ re-enable music/

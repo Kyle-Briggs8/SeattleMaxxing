@@ -162,14 +162,25 @@ def _keyword_categorize(events, categories):
     """
     log.info("categorize: using keyword fallback for %d events", len(events))
     for ev in events:
-        text = f"{ev['title']} {ev['description']}".lower()
-        match = None
-        for key in categories:  # already in CATEGORY_ORDER (tech first, etc.)
+        # Title counts double — it's a stronger signal than the description blurb,
+        # whose stray words ("tech", "ai") otherwise drown out the real category.
+        title = ev["title"].lower()
+        body = f"{ev['description']}".lower()
+        scores = {}
+        for key in categories:
             pat = _KEYWORD_RES.get(key)
-            if pat and pat.search(text):
-                match = key
-                break
-        _assign(ev, match or "uncategorized", None, 0.3 if match else 0.0)
+            if not pat:
+                continue
+            score = 2 * len(pat.findall(title)) + len(pat.findall(body))
+            if score:
+                scores[key] = score
+        if scores:
+            # Highest score wins; ties broken by CATEGORY_ORDER (categories dict).
+            best = max(categories, key=lambda k: (scores.get(k, 0), -list(categories).index(k)))
+            best = best if scores.get(best) else None
+        else:
+            best = None
+        _assign(ev, best or "uncategorized", None, 0.3 if best else 0.0)
     return events
 
 
