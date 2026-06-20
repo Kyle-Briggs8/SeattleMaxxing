@@ -114,6 +114,22 @@ def run(days, dry_run):
         return 0
 
     events = categorize.categorize(events)
+
+    # Focused digest: drop anything the LLM couldn't place in an enabled
+    # category, so the email is purely the categories we care about.
+    if config.DROP_UNCATEGORIZED:
+        kept = [e for e in events if e.get("primary") != "uncategorized"]
+        if len(kept) != len(events):
+            log.info("focus: dropped %d out-of-scope event(s)",
+                     len(events) - len(kept))
+        events = kept
+
+    if not events:
+        log.warning("no in-scope events after categorization — nothing to send")
+        if dry_run:
+            print("\n(no events matched your focus categories this week)\n")
+        return 0
+
     email_digest.build_and_maybe_send(events, days, dry_run)
 
     log.info("=== done: %d events in digest ===", len(events))

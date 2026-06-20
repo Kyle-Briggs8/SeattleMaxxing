@@ -28,19 +28,26 @@ CATEGORIES = {
                    "description": "pitch nights, demo days, founder mixers, accelerator/VC events"},
     "finance":    {"label": "Finance",         "enabled": True,
                    "description": "fintech, investing talks, professional/finance networking"},
-    "nature":     {"label": "Nature & Outdoors","enabled": True,
+    # ---- Below are OFF by default: this digest is focused on tech/startup/  ----
+    # ---- finance. Flip any to True to bring it back into prompt + email.    ----
+    "nature":     {"label": "Nature & Outdoors","enabled": False,
                    "description": "hikes, kayaking, trail events, park programming, climbing, cycling"},
-    "party":      {"label": "Parties & Nightlife","enabled": True,
+    "party":      {"label": "Parties & Nightlife","enabled": False,
                    "description": "DJ sets, club nights, warehouse events, bar crawls, late-night"},
-    "music":      {"label": "Music",           "enabled": True,
+    "music":      {"label": "Music",           "enabled": False,
                    "description": "concerts, open mics, live shows, music festivals"},
-    "food_drink": {"label": "Food & Drink",    "enabled": True,
+    "food_drink": {"label": "Food & Drink",    "enabled": False,
                    "description": "tastings, breweries/distilleries, food festivals, pop-ups, dinners"},
-    "arts":       {"label": "Arts & Culture",  "enabled": True,
+    "arts":       {"label": "Arts & Culture",  "enabled": False,
                    "description": "galleries, theater, film screenings, museum nights, readings"},
-    "sports":     {"label": "Sports",          "enabled": True,
+    "sports":     {"label": "Sports",          "enabled": False,
                    "description": "run clubs, pickup leagues, races, Sounders/Mariners/Kraken games"},
 }
+
+# When True, events the LLM can't place in an ENABLED category (i.e. it returns
+# "uncategorized") are dropped entirely instead of shown in an "Other" bucket.
+# Keeps the focused digest tight. Set False to surface everything.
+DROP_UNCATEGORIZED = True
 
 # Fixed render + grouping order for the email. Anything not listed (or disabled)
 # is skipped. "uncategorized" is handled separately and always rendered last.
@@ -68,8 +75,10 @@ def enabled_categories():
 SOURCES = {
     "luma":          {"enabled": True,  "url": "https://lu.ma/seattle"},
     # Ticketmaster Discovery API — official, stable JSON (concerts/arts/sports).
-    # Free key required; without it this source self-disables (logs + returns 0).
-    "ticketmaster":  {"enabled": True,  "url": "https://app.ticketmaster.com/discovery/v2/events.json"},
+    # OFF: it's an entertainment firehose with ~no tech/startup/finance signal
+    # and was burying the events we care about. Flip True (+ re-enable music/
+    # sports/arts categories) if you want concerts and Mariners/Kraken games.
+    "ticketmaster":  {"enabled": False, "url": "https://app.ticketmaster.com/discovery/v2/events.json"},
     "visit_seattle": {"enabled": True,  "url": "https://visitseattle.org/events/"},
     # EverOut sits behind an AWS WAF JS bot-challenge (HTTP 202, empty body) that
     # plain HTTP can't pass. Left here, disabled, so it resumes if unblocked.
