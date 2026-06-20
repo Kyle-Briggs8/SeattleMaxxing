@@ -73,16 +73,17 @@ Output JSON ONLY. No prose, no explanation, no markdown code fences."""
 # --------------------------------------------------------------------------- #
 def _call_llm(prompt):
     """Send the prompt to Gemini and return raw text. Swap THIS to change LLMs."""
-    import google.generativeai as genai  # imported here to keep boundary tight
+    from google import genai            # google-genai SDK (current; replaces the
+    from google.genai import types      # deprecated google-generativeai package)
 
-    genai.configure(api_key=config.GEMINI_API_KEY)
-    model = genai.GenerativeModel(config.GEMINI_MODEL)
-    resp = model.generate_content(
-        prompt,
-        generation_config={
-            "temperature": 0.0,          # deterministic classification
-            "response_mime_type": "application/json",  # nudge JSON-only output
-        },
+    client = genai.Client(api_key=config.GEMINI_API_KEY)
+    resp = client.models.generate_content(
+        model=config.GEMINI_MODEL,
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            temperature=0.0,             # deterministic classification
+            response_mime_type="application/json",  # nudge JSON-only output
+        ),
     )
     return resp.text or ""
 
@@ -136,38 +137,71 @@ def _parse_response(text):
 
 
 # --------------------------------------------------------------------------- #
+# Keyword fallback  (used only when the LLM is unavailable)
+# --------------------------------------------------------------------------- #
+def _assign(ev, primary="uncategorized", secondary=None, confidence=0.0):
+    ev["primary"] = primary
+    ev["secondary"] = secondary
+    ev["confidence"] = confidence
+
+
+# Pre-compile one word-boundary regex per category. Word boundaries matter:
+# substring matching would tag "Paint & Sip" as tech because "ai" is in "paint".
+_KEYWORD_RES = {
+    key: re.compile(
+        r"\b(?:" + "|".join(re.escape(kw.strip()) for kw in kws) + r")\b")
+    for key, kws in config.CATEGORY_KEYWORDS.items() if kws
+}
+
+
+def _keyword_categorize(events, categories):
+    """Crude word-boundary categorizer for when Gemini can't be reached.
+
+    Tries categories in CATEGORY_ORDER and takes the first whose keywords match.
+    Keeps the digest useful during a quota/outage instead of dropping to empty.
+    """
+    log.info("categorize: using keyword fallback for %d events", len(events))
+    for ev in events:
+        text = f"{ev['title']} {ev['description']}".lower()
+        match = None
+        for key in categories:  # already in CATEGORY_ORDER (tech first, etc.)
+            pat = _KEYWORD_RES.get(key)
+            if pat and pat.search(text):
+                match = key
+                break
+        _assign(ev, match or "uncategorized", None, 0.3 if match else 0.0)
+    return events
+
+
+# --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
 def categorize(events):
-    """Categorize all events in ONE batched call. Mutates + returns the list."""
+    """Categorize all events in ONE batched call. Mutates + returns the list.
+
+    Falls back to keyword matching (never empty) if the key is missing or the
+    LLM call fails — so a free-tier quota hit doesn't wipe out the digest.
+    """
     if not events:
         return events
 
     categories = config.enabled_categories()
     valid_keys = set(categories.keys())
 
-    def _assign(ev, primary="uncategorized", secondary=None, confidence=0.0):
-        ev["primary"] = primary
-        ev["secondary"] = secondary
-        ev["confidence"] = confidence
-
-    # No key / no client → don't crash the run; mark everything uncategorized.
     if not config.GEMINI_API_KEY:
-        log.warning("categorize: GEMINI_API_KEY missing — all uncategorized")
-        for ev in events:
-            _assign(ev)
-        return events
+        log.warning("categorize: GEMINI_API_KEY missing — keyword fallback")
+        return _keyword_categorize(events, categories)
 
     prompt = build_prompt(events, categories)
     try:
         raw = _call_llm(prompt)
     except Exception as exc:  # noqa: BLE001 — bad LLM call must not kill the run
-        log.warning("categorize: LLM call failed (%s) — all uncategorized", exc)
-        for ev in events:
-            _assign(ev)
-        return events
+        log.warning("categorize: LLM call failed (%s) — keyword fallback", exc)
+        return _keyword_categorize(events, categories)
 
     parsed = _parse_response(raw)
+    if not parsed:  # unparseable reply → don't lose everything, fall back
+        return _keyword_categorize(events, categories)
 
     for i, ev in enumerate(events):
         item = parsed.get(i, {})

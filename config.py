@@ -49,6 +49,31 @@ CATEGORIES = {
 # Keeps the focused digest tight. Set False to surface everything.
 DROP_UNCATEGORIZED = True
 
+# Keyword fallback — used ONLY when the LLM is unavailable (quota/error/no key)
+# so a Gemini outage degrades to a decent digest instead of an empty one. Crude
+# lowercase substring match on title+description, tried in CATEGORY_ORDER.
+CATEGORY_KEYWORDS = {
+    "tech": ["ai", "ml", "machine learning", "llm", "gpt", "developer", "dev ",
+             "software", "engineer", "data", "cloud", "devops", "hackathon",
+             "cyber", "security", "infra", "api", "coding", "code", "robot",
+             "product", "saas", "tech", "computer", "open source"],
+    "startup_vc": ["startup", "start-up", "founder", "vc", "venture", "pitch",
+                   "demo day", "seed", "accelerator", "incubator", "fundrais",
+                   "angel", "entrepreneur", "scale-up", "y combinator"],
+    "finance": ["finance", "fintech", "investing", "investor", "trading",
+                "crypto", "web3", "banking", "wealth", "capital", "economic",
+                "stock", "portfolio", "hedge", "private equity"],
+    "nature": ["hike", "trail", "kayak", "climb", "outdoor", "park", "cycling"],
+    "party": ["dj", "club night", "nightlife", "bar crawl", "warehouse", "rave"],
+    "music": ["concert", "live music", "open mic", "band", "festival", "dj set"],
+    "food_drink": ["tasting", "brewery", "distillery", "food", "wine", "beer",
+                   "dinner", "pop-up", "cocktail"],
+    "arts": ["gallery", "theater", "theatre", "film", "screening", "museum",
+             "art ", "exhibit", "reading", "comedy"],
+    "sports": ["run club", "pickup", "race", "marathon", "sounders", "mariners",
+               "kraken", "game", "league", "tournament"],
+}
+
 # Fixed render + grouping order for the email. Anything not listed (or disabled)
 # is skipped. "uncategorized" is handled separately and always rendered last.
 CATEGORY_ORDER = [
@@ -108,7 +133,9 @@ REGION_HINTS = [
 # LLM / categorizer
 # --------------------------------------------------------------------------- #
 # Only categorize.py should read these. Swapping providers = edit categorize.py.
-GEMINI_MODEL = "gemini-2.0-flash"
+# NOTE: gemini-2.0-flash's FREE tier was retired (returns 429 limit:0). 2.5-flash
+# is current and free-tier eligible. Change here if Google shifts tiers again.
+GEMINI_MODEL = "gemini-2.5-flash"
 
 
 # --------------------------------------------------------------------------- #
