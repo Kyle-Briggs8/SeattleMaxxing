@@ -14,7 +14,7 @@ fetch_all → dedupe → filter (window + region) → categorize (Gemini) → em
 | File              | Responsibility                                            |
 |-------------------|-----------------------------------------------------------|
 | `config.py`       | Categories, toggles, order, region hints, email, model    |
-| `sources.py`      | Luma / Ticketmaster / Visit Seattle fetchers + `fetch_all()` |
+| `sources.py`      | Luma / GeekWire / Ticketmaster / Visit Seattle fetchers + `fetch_all()` |
 | `categorize.py`   | Gemini batch call + safe JSON parse (**LLM isolated here**)|
 | `email_digest.py` | HTML + plaintext builder, Resend send                     |
 | `main.py`         | Orchestration + `--dry-run` / `--days` flags              |
@@ -76,6 +76,9 @@ source never kills the run (each is wrapped in try/except and logged).
 
 ### Current source status (as of last test)
 - **Luma** ✅ — parsed from `__NEXT_DATA__`, returning events reliably.
+- **GeekWire** ✅ — Seattle tech-news events calendar via its WordPress "The
+  Events Calendar" REST API (`/wp-json/tribe/events/v1/events`). Clean JSON, no
+  key, no scraping. The strongest source for this tech/startup/finance digest.
 - **Ticketmaster** ✅ — official Discovery JSON API (not a scraper, so it won't
   break on redesigns). Covers concerts/arts/sports within 25mi of Seattle.
   Requires the free `TICKETMASTER_API_KEY`; self-disables without it.

@@ -18,6 +18,7 @@ Two extraction strategies are used because they degrade gracefully:
                             cross-site. HTML-selector parsing is the fallback.
 """
 
+import html
 import json
 import logging
 import re
@@ -84,10 +85,20 @@ def _parse_dt(value):
 
 
 def _clean(text):
-    """Collapse whitespace; return ''. Keeps descriptions one tidy line."""
+    """Decode HTML entities + collapse whitespace into one tidy line."""
     if not text:
         return ""
-    return re.sub(r"\s+", " ", str(text)).strip()
+    return re.sub(r"\s+", " ", html.unescape(str(text))).strip()
+
+
+_TAG_RE = re.compile(r"<[^>]+>")
+
+
+def _strip_html(text):
+    """Remove HTML tags (then _clean handles entities/whitespace)."""
+    if not text:
+        return ""
+    return _clean(_TAG_RE.sub(" ", str(text)))
 
 
 def _normalize(title, url, start_datetime, location, description, source):
@@ -367,10 +378,46 @@ def fetch_ticketmaster(url):
 
 
 # --------------------------------------------------------------------------- #
+# Source: GeekWire  (https://www.geekwire.com/events/)  — Tribe REST API
+# --------------------------------------------------------------------------- #
+# Seattle's tech-news events calendar — squarely tech/startup/finance, which is
+# exactly this digest's focus. Runs the WordPress "The Events Calendar" plugin,
+# whose REST API gives clean JSON (no key, no scraping). `url` in config points
+# at the wp-json endpoint.
+def fetch_geekwire(url):
+    # Pull a generous upcoming window; main.py's filter narrows to --days.
+    today = (datetime.now(_PACIFIC) if _PACIFIC else datetime.now()).strftime("%Y-%m-%d")
+    resp = requests.get(
+        url,
+        params={"per_page": 50, "start_date": today},
+        headers={"User-Agent": config.HTTP_USER_AGENT},
+        timeout=config.HTTP_TIMEOUT,
+    )
+    resp.raise_for_status()
+
+    out = []
+    for e in resp.json().get("events", []):
+        venue = e.get("venue") or {}
+        location = _clean(f"{venue.get('venue', '')} {venue.get('city', '')}".strip())
+        ev = _normalize(
+            title=e.get("title"),
+            url=e.get("url", ""),
+            start_datetime=_parse_dt(e.get("start_date")),  # already Pacific-local
+            location=location,
+            description=_strip_html(e.get("description") or e.get("excerpt")),
+            source="geekwire",
+        )
+        if ev:
+            out.append(ev)
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # Dispatch
 # --------------------------------------------------------------------------- #
 _FETCHERS = {
     "luma": fetch_luma,
+    "geekwire": fetch_geekwire,
     "ticketmaster": fetch_ticketmaster,
     "everout": fetch_everout,
     "visit_seattle": fetch_visit_seattle,

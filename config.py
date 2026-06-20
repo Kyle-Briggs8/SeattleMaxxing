@@ -74,6 +74,9 @@ def enabled_categories():
 # only working free sources are scraped HTML and are FRAGILE by nature.
 SOURCES = {
     "luma":          {"enabled": True,  "url": "https://lu.ma/seattle"},
+    # GeekWire tech events calendar (WordPress Tribe REST API — clean JSON, no
+    # key). Seattle tech/startup/finance — the core of this digest.
+    "geekwire":      {"enabled": True,  "url": "https://www.geekwire.com/wp-json/tribe/events/v1/events"},
     # Ticketmaster Discovery API — official, stable JSON (concerts/arts/sports).
     # OFF: it's an entertainment firehose with ~no tech/startup/finance signal
     # and was burying the events we care about. Flip True (+ re-enable music/
