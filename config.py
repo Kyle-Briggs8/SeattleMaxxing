@@ -110,9 +110,12 @@ SOURCES = {
                       "queries": ["startup", "venture capital", "fintech",
                                   "investing", "founders"]},
     # Eventbrite — discovery via the city pages' embedded JSON-LD ItemList. This
-    # is HTML/JSON-LD scraping, NOT the dead search API (see CLAUDE.md). Add more
-    # /d/wa--seattle/<category>--events/ pages to widen coverage.
-    "eventbrite":    {"enabled": True,
+    # is HTML/JSON-LD scraping, NOT the dead search API (see CLAUDE.md).
+    # OFF by default: Eventbrite serves 405 to datacenter IPs, so it returns 0
+    # from GitHub Actions (works fine from a residential IP / local runs). Its
+    # events also largely show up via the allevents.in aggregator. Flip True to
+    # use locally. Add /d/wa--seattle/<category>--events/ pages to widen.
+    "eventbrite":    {"enabled": False,
                       "url": "https://www.eventbrite.com/d/wa--seattle/tech--events/",
                       "pages": [
                           "https://www.eventbrite.com/d/wa--seattle/tech--events/",
@@ -162,6 +165,9 @@ REGION_HINTS = [
 # NOTE: gemini-2.0-flash's FREE tier was retired (returns 429 limit:0). 2.5-flash
 # is current and free-tier eligible. Change here if Google shifts tiers again.
 GEMINI_MODEL = "gemini-2.5-flash"
+# Free-tier Gemini occasionally returns transient 503 ("high demand"). Retry a
+# few times with backoff before giving up to the keyword fallback.
+GEMINI_MAX_ATTEMPTS = 3
 
 
 # --------------------------------------------------------------------------- #

@@ -39,7 +39,10 @@ Categories must be toggleable in `config.py` without touching pipeline logic.
   events now. Never reintroduce the *API* as a discovery source. HOWEVER, the
   Eventbrite city pages (`/d/wa--seattle/<category>--events/`) embed a JSON-LD
   `ItemList` of events that IS usable for discovery — this is what
-  `fetch_eventbrite` reads. Different mechanism, allowed, in use. Don't remove it.
+  `fetch_eventbrite` reads. Different mechanism, allowed. BUT it's OFF by default:
+  Eventbrite serves 405 to datacenter IPs, so it returns 0 from GitHub Actions
+  (works from residential/local). Keep it wired (works locally; allevents.in
+  surfaces many of the same events) — don't delete it.
 - **Meetup's official API is paid.** But its `/find/` page is a Next.js app that
   embeds an Apollo cache of search results — `fetch_meetup` parses that (no key).
   This is the startup/VC/finance engine; keep it.

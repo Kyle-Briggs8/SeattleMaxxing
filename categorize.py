@@ -18,10 +18,19 @@ parse defensively, and fall back to "uncategorized" for anything we can't map.
 import json
 import logging
 import re
+import time
 
 import config
 
 log = logging.getLogger("categorize")
+
+
+def _is_transient(exc):
+    """True for retryable Gemini errors (overload/rate/timeout), not 4xx config."""
+    s = str(exc).lower()
+    return any(t in s for t in
+               ("503", "unavailable", "500", "internal", "overloaded",
+                "429", "rate", "deadline", "timeout", "temporarily"))
 
 
 # --------------------------------------------------------------------------- #
@@ -204,11 +213,24 @@ def categorize(events):
         return _keyword_categorize(events, categories)
 
     prompt = build_prompt(events, categories)
-    try:
-        raw = _call_llm(prompt)
-    except Exception as exc:  # noqa: BLE001 — bad LLM call must not kill the run
-        log.warning("categorize: LLM call failed (%s) — keyword fallback", exc)
-        return _keyword_categorize(events, categories)
+    raw = None
+    attempts = max(1, config.GEMINI_MAX_ATTEMPTS)
+    for attempt in range(1, attempts + 1):
+        try:
+            raw = _call_llm(prompt)
+            break
+        except Exception as exc:  # noqa: BLE001 — never let a bad call kill the run
+            # Only retry transient overloads (503/429/timeout); fail fast on the
+            # rest (bad key, quota:0, etc.) since retrying won't help.
+            if attempt < attempts and _is_transient(exc):
+                wait = 4 * attempt  # 4s, 8s, ...
+                log.warning("categorize: attempt %d/%d failed (%s); retry in %ds",
+                            attempt, attempts, str(exc)[:90], wait)
+                time.sleep(wait)
+                continue
+            log.warning("categorize: LLM call failed (%s) — keyword fallback",
+                        str(exc)[:120])
+            return _keyword_categorize(events, categories)
 
     parsed = _parse_response(raw)
     if not parsed:  # unparseable reply → don't lose everything, fall back
